@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+alembic
+jdatetime
+pytest
+pydantic-settings
+psycopg2-binary
+pwdlib[argon2]
+pyJWT
