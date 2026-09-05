@@ -1,7 +1,7 @@
 # Project Name
 mini-task-manager
 # Project Description
-Manage Todos App
+Initial FastAPI Task Manager
 # Create Virtual Environment
 mini-task-manager>python -m venv .venv
 # Activate Virtual Environment
