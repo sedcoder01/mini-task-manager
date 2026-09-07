@@ -8,3 +8,5 @@ pydantic-settings
 psycopg2-binary
 pwdlib[argon2]
 pyJWT
+email-validator
+python-multipart
