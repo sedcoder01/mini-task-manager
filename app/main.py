@@ -4,6 +4,7 @@ from sqlalchemy import text
 from app.database import get_db
 from app.routers.users import router as userRouter
 from app.routers.tasks import router as taskRouter
+from app.redis import redis_client
 
 app = FastAPI()
 app.include_router(userRouter)
@@ -25,5 +26,14 @@ async def db_health(db: Session= Depends(get_db)):
         return { "database": "ok" }
     else:
         return { 'database' : 'error'}
+
+@app.get('/redis-test')
+def redis_test():
+    redis_client.set('test', 'Hello Redis')
     
+    value = redis_client.get('test')
+    
+    return {
+        'redis': value
+    }
 

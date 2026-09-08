@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from starlette import status
-from app.crud import UserUpdateTaskByID, getAllTasks,CreateTaskById,GetTaskById,GetTasksByUserId,UpdateTaskById,DeleteTasksById
+from app.crud import GetUserTasks, UserUpdateTaskByID, getAllTasks,CreateTaskById,GetTaskById,UpdateTaskById,DeleteTasksById
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Users, Role
@@ -26,13 +26,18 @@ async def get_all_taks(db: db_dependency,user: user_dependency):
 async def get_task_by_id(task_id : int ,db: db_dependency, user: user_dependency):
     return GetTaskById(task_id,user, db)
 
-@router.get('/uid/{user_id}', status_code=status.HTTP_200_OK,response_model=list[TaskResponse])
-async def get_task_by_user_id(
-    user_id : int,
+@router.get('/uid/', status_code=status.HTTP_200_OK,response_model=list[TaskResponse])
+async def get_user_tasks(
     db: db_dependency,
-    user: Users = Depends(require_role(Role.manager,Role.admin))    
-):
-    return GetTasksByUserId(user_id, db)
+    user: user_dependency):    
+    return GetUserTasks(user.id, db)
+
+@router.get('/uid/{user_id}', status_code=status.HTTP_200_OK,response_model=list[TaskResponse])
+async def get_user_tasks_by_id(
+    user_id: int,
+    db: db_dependency,
+    user: Users = Depends(require_role(Role.admin, Role.manager))):    
+    return GetUserTasks(user_id, db)
 
 @router.post('/create_task', status_code= status.HTTP_201_CREATED, response_model=TaskResponse)
 async def create_task(

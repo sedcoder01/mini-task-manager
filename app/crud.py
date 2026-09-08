@@ -4,7 +4,9 @@ from app.models import Role, Users, Tasks, Status,Priority
 from app.schemas import ChangePassword, ChangeRole, CreateTask,UpdateTask,CreateUser, UpdateTaskStatus
 from datetime import datetime, timezone
 from app.security import hash_password,verify_password, create_access_token
-
+import json
+from app.redis import redis_client
+from fastapi.encoders import jsonable_encoder
 
 
 
@@ -127,6 +129,7 @@ def CreateTaskById(request : CreateTask ,db):
     )
     db.add(task)
     db.commit()
+    redis_client.delete(f'tasks:user:{request.user_id}')
     return task
 
 def GetTaskById(task_id: int, user, db):
@@ -137,8 +140,18 @@ def GetTaskById(task_id: int, user, db):
         raise HTTPException(status_code=403,detail='You do not have permission to access this task')
     return task
 
-def GetTasksByUserId(user_id: int, db):
+def GetUserTasks(user_id: int, db):
+    cache_key = f'tasks:user:{user_id}'
+    cached_tasks = redis_client.get(cache_key)
+    if cached_tasks:
+        return json.loads(cached_tasks)
     tasks = db.query(Tasks).filter(Tasks.user_id == user_id).all()
+    tasks_data = jsonable_encoder(tasks)
+    redis_client.set(
+        cache_key,
+        json.dumps(tasks_data),
+        ex=60
+    )
     return tasks
 
 def UpdateTaskById(task_id : int, request : UpdateTask ,db):
@@ -158,9 +171,12 @@ def UpdateTaskById(task_id : int, request : UpdateTask ,db):
     task.status = request.status
     task.priority = request.priority
     task.due_date = request.due_date
+    old_user_id = task.user_id
     task.user_id = request.user_id
     db.commit()
     db.refresh(task)
+    redis_client.delete(f'tasks:user:{old_user_id}')
+    redis_client.delete(f'tasks:user:{request.user_id}')
     return task
 
 def UserUpdateTaskByID(request: UpdateTaskStatus ,task_id: int, db, user):
@@ -172,6 +188,7 @@ def UserUpdateTaskByID(request: UpdateTaskStatus ,task_id: int, db, user):
     task.status = request.status
     db.commit()
     db.refresh(task)
+    redis_client.delete(f'tasks:user:{user.id}')
     return task
 
 def DeleteTasksById(task_id: int, db):
@@ -180,4 +197,5 @@ def DeleteTasksById(task_id: int, db):
         raise HTTPException(status_code=404, detail='Task Not Found')
     db.query(Tasks).filter(Tasks.id == task_id).delete()
     db.commit()
+    redis_client.delete(f'tasks:user:{task.user_id}')
     return 'DONE'

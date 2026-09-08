@@ -26,7 +26,7 @@ tests
 این فایل اگر داخل پوشه ای قرار گیرد پایتون آن پوشه را بعنوان پکیج در نظر می گیرد.
 می توان کتابخانه های مربوط نیاز پکیج را در این فایل نیز فراخوانی کرد.
 # Database Type
-sqlite3
+PostgreSQL
 # Database File Location
 mini-task-manager/data/task_manager.db
 # SQLAlchemy
@@ -41,6 +41,5 @@ mini-task-manager/data/task_manager.db
 یک Session جهت کار با دیتابیس باز می کند و بعد از اتمام عملیات نیز Session را می بندد
 # Database Helth Check
 یک عملیت ساده جهت تست ارتباط با دیتابیس انجام می شود و در صورت سلامت ارتباط پیغام مناسب برگشت داده می شود.
-
-# Feature Branch
-This change is made on the task-filter branch.
+# Database Cache
+Redis
