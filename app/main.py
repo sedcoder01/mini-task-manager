@@ -29,7 +29,7 @@ async def db_health(db: Session= Depends(get_db)):
 
 @app.get('/redis-test')
 def redis_test():
-    redis_client.set('test', 'Hello Redis')
+    redis_client.set('test', 'Hello Redis!')
     
     value = redis_client.get('test')
     

@@ -79,7 +79,7 @@ def UpdateUserRole(user_id: int, request: ChangeRole, db):
     db.commit()
     return user
 
-def UpdateUserPassword(user_id: int, request: str, db):
+def UpdateUserPasswordById(user_id: int, request: str, db):
     user = db.query(Users).filter(Users.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail='User Not Found')
@@ -114,7 +114,7 @@ def CreateTaskById(request : CreateTask ,db):
     owner = db.query(Users).filter(Users.id == request.user_id).first()
     if owner is None:
         raise HTTPException(status_code=404, detail='Owner of Task Not Found')
-    if request.due_date <= datetime.now(timezone.utc).date():
+    if request.due_date < datetime.now(timezone.utc).date():
             raise HTTPException(
             status_code=400,
             detail="Due date must be after creation date"
@@ -129,7 +129,11 @@ def CreateTaskById(request : CreateTask ,db):
     )
     db.add(task)
     db.commit()
-    redis_client.delete(f'tasks:user:{request.user_id}')
+    redis_client.rpush(
+        f"tasks:queue:user:{request.user_id}",
+        task.id
+    )
+    # redis_client.delete(f'tasks:user:{request.user_id}') //Task changed, need Rebuild
     return task
 
 def GetTaskById(task_id: int, user, db):

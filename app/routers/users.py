@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Body
 from starlette import status
-from app.crud import UpdatePassword, UpdateUserPassword, UpdateUserRole, createUser, getAllUsers, getUserByEmail, getUserById, deleteUser, authenticateUser, updateUserInfo
+from app.crud import UpdatePassword, UpdateUserPasswordById, UpdateUserRole, createUser, getAllUsers, getUserByEmail, getUserById, deleteUser, authenticateUser, updateUserInfo
 from app.database import get_db
 from app.schemas import ChangePassword, ChangeRole, CreateUser, UpdateUser, UserResponse, Token
 from sqlalchemy.orm import Session
@@ -80,7 +80,7 @@ async def change_user_password(
     new_password: str = Body(min_length=5),
     user: Users = Depends(require_role(Role.admin))
 ):
-    return UpdateUserPassword(user_id, new_password, db)
+    return UpdateUserPasswordById(user_id, new_password, db)
 
 @router.patch('/me/password', status_code=status.HTTP_200_OK, response_model=UserResponse)
 async def change_user_password(
