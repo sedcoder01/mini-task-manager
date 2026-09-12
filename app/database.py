@@ -1,9 +1,7 @@
 from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
-from os import getcwd
 from app.config import settings
-from urllib.parse import quote_plus
 
 DB_URL = URL.create(
     'postgresql+psycopg2',

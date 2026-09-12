@@ -1,7 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from starlette import status
+from fastapi import APIRouter, Depends, status
 from app.crud import GetUserTasks, UserUpdateTaskByID, getAllTasks,CreateTaskById,GetTaskById,UpdateTaskById,DeleteTasksById
 from app.database import get_db
 from app.dependencies import get_current_user
