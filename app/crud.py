@@ -1,12 +1,10 @@
-from fastapi import HTTPException, Path
+from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from app.models import Role, Users, Tasks, Status,Priority
-from app.schemas import ChangePassword, ChangeRole, CreateTask, UpdateDueDate, UpdatePriority, UpdateStatus,UpdateTask,CreateUser, UpdateTaskInfo
+from app.schemas import ChangePassword, ChangeRole, CreateTask, UpdateDueDate, UpdatePriority, UpdateStatus,CreateUser, UpdateTaskInfo
 from datetime import datetime, timezone
 from app.security import hash_password,verify_password, create_access_token
-import json
 from app.redis import redis_client
-from fastapi.encoders import jsonable_encoder
 
 def createUser(request: CreateUser ,db):
     user = Users(
@@ -73,6 +71,7 @@ def UpdateUserRole(user_id: int, request: ChangeRole, db):
         raise HTTPException(status_code=404, detail='User Not Found')
     user.role = request.role
     db.commit()
+    db.refresh(user)
     return user
 
 def UpdateUserPasswordById(user_id: int, request: str, db):
@@ -299,7 +298,11 @@ def GetCurrentTask(db, user):
     if redis_client.llen(processing_key) > 0:
         task_id = redis_client.lindex(processing_key,0)
         return GetTaskById(int(task_id), user, db)
-    return None
+    raise HTTPException(
+        status_code=404,
+        detail="No Current Task"
+    )
+    
 
 def GetTasksByStatus(task_status: Status, db, user):
     tasks = db.query(Tasks).filter(Tasks.user_id == user.id).filter(Tasks.status == task_status).all()

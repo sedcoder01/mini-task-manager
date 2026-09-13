@@ -25,7 +25,7 @@ async def get_current_user_info(user: user_dependency):
 async def create_user(
     request: CreateUser,
     db: db_dependency,
-    user: Users = Depends(require_role(Role.admin))):
+    user: Users = Depends(require_role(Role.admin,Role.user))):
     return createUser(request,db)
 
 @router.post('/login',status_code=status.HTTP_200_OK,response_model=Token)
@@ -39,14 +39,6 @@ async def get_all_users(
 ):
     return getAllUsers(db)
 
-@router.get('/{user_id}',status_code=status.HTTP_200_OK,response_model=UserResponse)
-async def get_user_by_id(
-    user_id: int,
-    db: db_dependency,
-    user: Users = Depends(require_role(Role.admin)) 
-):
-    return getUserById(user_id,db)
-
 @router.get('/email/{email}',status_code=status.HTTP_200_OK,response_model=UserResponse)
 async def get_user_by_email(
     email: str,
@@ -55,7 +47,15 @@ async def get_user_by_email(
 ):
     return getUserByEmail(email.lower(),db)
 
-@router.put('/user/{user_id}', status_code=status.HTTP_200_OK, response_model=UserResponse)
+@router.get('/{user_id}',status_code=status.HTTP_200_OK,response_model=UserResponse)
+async def get_user_by_id(
+    user_id: int,
+    db: db_dependency,
+    user: Users = Depends(require_role(Role.admin)) 
+):
+    return getUserById(user_id,db)
+
+@router.patch('/user/{user_id}', status_code=status.HTTP_200_OK, response_model=UserResponse)
 async def update_user_info(
     user_id: int,
     request: UpdateUser,
@@ -64,7 +64,7 @@ async def update_user_info(
 ):
     return updateUserInfo(user_id,request.name,request.email.lower(),db)
 
-@router.patch('/{user_id}/role', status_code= status.HTTP_200_OK, response_model=UserResponse)
+@router.patch('/role/{user_id}', status_code= status.HTTP_200_OK, response_model=UserResponse)
 async def update_user_role(
     user_id: int,
     request : ChangeRole,

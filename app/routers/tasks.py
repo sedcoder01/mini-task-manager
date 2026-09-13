@@ -23,8 +23,8 @@ async def get_all_tasks(db: db_dependency,user: user_dependency):
 
 @router.get('/next', status_code=status.HTTP_200_OK,response_model=TaskResponse)
 async def get_next_task(
-  db : db_dependency,
-  user: user_dependency  
+    db : db_dependency,
+    user: user_dependency  
 ):
     return GetNextTask(db,user)
 
@@ -35,7 +35,7 @@ async def get_user_tasks_by_id(
     user: Users = Depends(require_role(Role.manager, Role.admin))):    
     return getAllTasks(db, user, user_id)
 
-@router.get('/currenttask', status_code=status.HTTP_200_OK, response_model=TaskResponse)
+@router.get('/current', status_code=status.HTTP_200_OK, response_model=TaskResponse)
 async def get_current_task(
     db: db_dependency,
     user: user_dependency
@@ -75,12 +75,12 @@ async def update_task_info(
     task_id: int,
     info: UpdateTaskInfo,
     db: db_dependency,
-    user: Users = Depends(require_role(Role.admin,Role.manager))
+    user: Users = Depends(require_role(Role.admin, Role.manager))
 ):
     return UpdateTaskInformation(task_id, info, db)
 
 @router.patch('/priority/{task_id}', status_code=status.HTTP_200_OK, response_model=TaskResponse)
-async def update_task_status(
+async def update_task_priority(
     request: UpdatePriority,
     task_id: int,
     db: db_dependency,
@@ -114,8 +114,6 @@ async def update_task_owner(
     user: Users = Depends(require_role(Role.admin, Role.manager))
 ):
     return UpdateTaskOwner(task_id,owner_id,db)
-
-
 
 @router.delete('/{task_id}', status_code=status.HTTP_200_OK)
 async def delete_task_by_id(
