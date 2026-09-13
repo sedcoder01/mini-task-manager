@@ -5,11 +5,20 @@ from app.database import get_db
 from app.routers.users import router as userRouter
 from app.routers.tasks import router as taskRouter
 from app.redis import redis_client
+# from app.crud import RebuildTaskQueues
 
 app = FastAPI()
+
+# @app.on_event('startup')
+# def startup():
+#     db = next(get_db())
+#     try:
+#         RebuildTaskQueues(db)
+#     finally:
+#         db.close()
+        
 app.include_router(userRouter)
 app.include_router(taskRouter)
-
 
 @app.get('/')
 async def all():

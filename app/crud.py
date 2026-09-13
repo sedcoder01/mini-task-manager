@@ -170,17 +170,29 @@ def UpdateTaskById(task_id : int, request : UpdateTask ,db):
         status_code=400,
         detail="Due date must be after creation date"
     )
+    old_user_id = task.user_id
+    if task.user_id != request.user_id:
+        redis_client.lrem(f'tasks:queue:user:{old_user_id}', 0, str(task.id))
+        redis_client.lrem(f'tasks:processing:user:{old_user_id}', 0, str(task.id))
+        task.user_id = request.user_id
+    if request.status == Status.in_progress:
+        processing_key = f'tasks:processing:user:{request.user_id}'
+        if redis_client.llen(processing_key) > 0:
+            request.status = Status.todo
     task.title = request.title
     task.description = request.description
-    task.status = request.status
     task.priority = request.priority
     task.due_date = request.due_date
-    old_user_id = task.user_id
-    task.user_id = request.user_id
+    task.status = request.status
     db.commit()
     db.refresh(task)
-    redis_client.delete(f'tasks:user:{old_user_id}')
-    redis_client.delete(f'tasks:user:{request.user_id}')
+    if task.status == Status.todo:
+        redis_client.rpush(f'tasks:queue:user:{task.user_id}', task.id)
+    elif task.status == Status.in_progress:
+        processing_key = f'tasks:processing:user:{task.user_id}'
+        redis_client.rpush(processing_key, task.id)
+    # redis_client.delete(f'tasks:user:{old_user_id}')
+    # redis_client.delete(f'tasks:user:{request.user_id}')
     return task
 
 def UserUpdateTaskByID(request: UpdateTaskStatus ,task_id: int, db, user):
@@ -192,7 +204,13 @@ def UserUpdateTaskByID(request: UpdateTaskStatus ,task_id: int, db, user):
     task.status = request.status
     db.commit()
     db.refresh(task)
-    redis_client.delete(f'tasks:user:{user.id}')
+    # redis_client.delete(f'tasks:user:{user.id}')
+    if request.status == Status.done:
+        redis_client.lrem( #remove Item By ID not index, example processing: [5, 6, 7] lrem 6 result: [5, 7]
+            f'tasks:processing:user:{task.user_id}',
+            1,
+            str(task.id)
+        )
     return task
 
 def DeleteTasksById(task_id: int, db):
@@ -201,5 +219,48 @@ def DeleteTasksById(task_id: int, db):
         raise HTTPException(status_code=404, detail='Task Not Found')
     db.query(Tasks).filter(Tasks.id == task_id).delete()
     db.commit()
-    redis_client.delete(f'tasks:user:{task.user_id}')
+    # redis_client.delete(f'tasks:user:{task.user_id}')
+    redis_client.lrem(f'tasks:queue:user:{task.user_id}', 0, str(task.id))
+    redis_client.lrem(f'tasks:processing:user:{task.user_id}', 0, str(task.id))
     return 'DONE'
+
+def GetNextTask(db, user):
+    queue_key = f'tasks:queue:user:{user.id}'
+    proccessing_key = f'tasks:processing:user:{user.id}'
+    
+    processing_task = redis_client.lrange(proccessing_key, 0, 0)
+    if processing_task:
+        raise HTTPException(status_code=400,detail="Please complete your current task first")
+    
+    task_id = redis_client.lmove(
+        queue_key,
+        proccessing_key,
+        "LEFT",
+        "RIGHT"
+    )
+    if task_id is None:
+        raise HTTPException(status_code=404, detail="No Task Available")
+    task = db.query(Tasks).filter(Tasks.id == int(task_id)).first()
+    if task is None:
+        raise HTTPException(status_code=404,detail="Task Not Found")
+    task.status = Status.in_progress
+    db.commit()
+    db.refresh(task)
+    return task
+
+def RebuildTaskQueues(db):
+    tasks = db.query(Tasks).filter(Tasks.status != Status.done).all()
+    if tasks:
+        for task in tasks:
+            queue_key = f'tasks:queue:user:{task.user_id}'
+            processing_key = f'tasks:processing:user:{task.user_id}'
+            if (
+                redis_client.lpos(queue_key, str(task.id)) is not None
+            or
+                redis_client.lpos(processing_key, str(task.id)) is not None
+            ):
+                continue
+            if task.status == Status.todo:
+                    redis_client.rpush(queue_key, task.id)
+            elif task.status == Status.in_progress:
+                redis_client.rpush(processing_key, task.id)

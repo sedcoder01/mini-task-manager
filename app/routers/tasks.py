@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from app.crud import GetUserTasks, UserUpdateTaskByID, getAllTasks,CreateTaskById,GetTaskById,UpdateTaskById,DeleteTasksById
+from app.crud import GetNextTask, GetUserTasks, UserUpdateTaskByID, getAllTasks,CreateTaskById,GetTaskById,UpdateTaskById,DeleteTasksById
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Users, Role
@@ -20,6 +20,13 @@ db_dependency = Annotated[Session, Depends(get_db)]
 @router.get('/all', status_code=status.HTTP_200_OK,response_model=list[TaskResponse])
 async def get_all_taks(db: db_dependency,user: user_dependency):
     return getAllTasks(db,user)
+
+@router.get('/next', status_code=status.HTTP_200_OK,response_model=TaskResponse)
+async def get_next_task(
+  db : db_dependency,
+  user: user_dependency  
+):
+    return GetNextTask(db,user)
 
 @router.get('/{task_id}', status_code=status.HTTP_200_OK,response_model=TaskResponse)
 async def get_task_by_id(task_id : int ,db: db_dependency, user: user_dependency):
@@ -63,6 +70,8 @@ async def update_task_status(
 ):
     return UserUpdateTaskByID(request,task_id,db,user)
 
+
+
 @router.delete('/{task_id}', status_code=status.HTTP_200_OK)
 async def delete_task_by_id(
     task_id : int,
@@ -70,3 +79,4 @@ async def delete_task_by_id(
     user: Users = Depends(require_role(Role.admin, Role.manager))    
 ):
     return DeleteTasksById(task_id, db)
+
