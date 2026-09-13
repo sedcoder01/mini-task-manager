@@ -34,21 +34,31 @@ class UserResponse(BaseModel):
 class CreateTask(BaseModel):
     title : str = Field(min_length=1)
     description : str = Field(min_length=3)
-    status : Status = Field()
-    priority : Priority = Field()
-    due_date : date = Field()
+    status : Status
+    priority : Priority
+    due_date : date
     user_id : int = Field(gt=0)
     
 class UpdateTask(BaseModel):
     title : str = Field(min_length=1)
     description : str = Field(min_length=3)
-    status : Status = Field()
-    priority : Priority = Field()
-    due_date : date = Field()
+    status : Status
+    priority : Priority
+    due_date : date
     user_id : int = Field(gt=0)
     
-class UpdateTaskStatus(BaseModel):
+class UpdateTaskInfo(BaseModel):
+    title: str = Field(min_length=3, default="task")
+    description: str = Field(min_length=3, default="info")
+    
+class UpdateStatus(BaseModel):
     status : Status
+
+class UpdatePriority(BaseModel):
+    priority : Priority
+    
+class UpdateDueDate(BaseModel):
+    due_date: date
 
 class TaskResponse(BaseModel):
     id : int
