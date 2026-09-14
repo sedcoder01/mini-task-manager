@@ -5,6 +5,7 @@ from app.schemas import ChangePassword, ChangeRole, CreateTask, UpdateDueDate, U
 from datetime import datetime, timezone
 from app.security import hash_password,verify_password, create_access_token
 from app.redis import redis_client
+import subprocess
 
 def createUser(request: CreateUser ,db):
     user = Users(
@@ -138,7 +139,14 @@ def CreateTaskById(request : CreateTask ,db):
         f"tasks:queue:user:{request.user_id}",
         task.id
     )
+    # redis_client.publish(f'user:{request.user_id}:notifications', f"New Task Created: {task.title}") #Redis pub/sub
     # redis_client.delete(f'tasks:user:{request.user_id}') //Task changed, need Rebuild
+    redis_client.xadd(
+        f'user:{request.user_id}:notifications',
+        {
+            'message': f'New Task Created: {task.title}'
+        }
+    ) #Redis Streams
     return task
 
 def GetTaskById(task_id: int, user, db):

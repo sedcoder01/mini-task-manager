@@ -425,39 +425,6 @@
           "response": []
         },
         {
-          "name": "Update Task By ID",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"title\": \"Task 1\",\r\n    \"description\": \"About Task 1\",\r\n    \"status\": \"done\", // todo, in_progress, done\r\n    \"priority\": \"low\", //low, medium, high\r\n    \"due_date\": \"2026-09-10\", //YYYY/MM/DD\r\n    \"user_id\": 1\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{server}}/task/:task_id",
-              "host": [
-                "{{server}}"
-              ],
-              "path": [
-                "task",
-                ":task_id"
-              ],
-              "variable": [
-                {
-                  "key": "task_id",
-                  "value": "7"
-                }
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Update Task Status By ID",
           "request": {
             "method": "PATCH",
