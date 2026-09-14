@@ -55,7 +55,7 @@ async def get_user_by_id(
 ):
     return getUserById(user_id,db)
 
-@router.patch('/user/{user_id}', status_code=status.HTTP_200_OK, response_model=UserResponse)
+@router.patch('/info/{user_id}', status_code=status.HTTP_200_OK, response_model=UserResponse)
 async def update_user_info(
     user_id: int,
     request: UpdateUser,
