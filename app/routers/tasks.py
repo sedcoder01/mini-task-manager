@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from app.crud import GetCurrentTask, GetNextTask, GetTasksByPriority, GetTasksByStatus, UpdateTaskDuedate, UpdateTaskInformation, UpdateTaskOwner, UpdateTaskPriority, UpdateTaskStatus, getAllTasks,CreateTaskById,GetTaskById,DeleteTasksById
+from app.crud import CreateUserTask, GetCurrentTask, GetNextTask, GetTasksByPriority, GetTasksByStatus, UpdateTaskDuedate, UpdateTaskInformation, UpdateTaskOwner, UpdateTaskPriority, UpdateTaskStatus, getAllTasks,GetTaskById,DeleteTasksById
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Priority, Status, Users, Role
@@ -68,7 +68,7 @@ async def create_task(
     db: db_dependency,
     user: Users = Depends(require_role(Role.admin,Role.manager)) ,
     ):
-    return CreateTaskById(request, db)
+    return CreateUserTask(request, db)
 
 @router.patch('/info/{task_id}', status_code=status.HTTP_200_OK,response_model=TaskResponse)
 async def update_task_info(

@@ -5,7 +5,7 @@ from app.schemas import ChangePassword, ChangeRole, CreateTask, UpdateDueDate, U
 from datetime import datetime, timezone
 from app.security import hash_password,verify_password, create_access_token
 from app.redis import redis_client
-import subprocess
+from app.redis_stream import publish_task_event, StreamKey, TaskEvents, publish_user_event, UserEvents
 
 def createUser(request: CreateUser ,db):
     user = Users(
@@ -18,9 +18,11 @@ def createUser(request: CreateUser ,db):
         db.add(user)
         db.commit()
         db.refresh(user)
+        publish_user_event(key=StreamKey.USER, event=UserEvents.CREATED, user_id=user.id)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409,detail="Email is Exist, Use A Diffrent Email")
+    
     return user
     
 def getAllUsers(db):
@@ -47,10 +49,16 @@ def authenticateUser(email: str, password: str, db):
     token = create_access_token(
         { 'sub' : str(user.id)}
     )
+    publish_user_event(key=StreamKey.USER, event=UserEvents.LOGGED_IN, user_id=user.id)
+    notifications = redis_client.lrange(
+        f"user:{user.id}:notifications",
+        0,
+        -1
+    )
     return {
         'access_token': token,
         'token_type': 'bearer'
-    }
+        }
     
 def updateUserInfo(user_id: int,name : str,email: str, db):
     user = db.query(Users).filter(Users.id == user_id).first()
@@ -61,6 +69,8 @@ def updateUserInfo(user_id: int,name : str,email: str, db):
     try:
         db.add(user)
         db.commit()
+        db.refresh(user)
+        publish_user_event(key=StreamKey.USER, event= UserEvents.INFO_UPDATED, user_id=user.id)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409,detail="Email is Exist")
@@ -73,6 +83,7 @@ def UpdateUserRole(user_id: int, request: ChangeRole, db):
     user.role = request.role
     db.commit()
     db.refresh(user)
+    publish_user_event(key=StreamKey.USER, event= UserEvents.ROLE_UPDATED, user_id=user.id)
     return user
 
 def UpdateUserPasswordById(user_id: int, request: str, db):
@@ -81,6 +92,8 @@ def UpdateUserPasswordById(user_id: int, request: str, db):
         raise HTTPException(status_code=404, detail='User Not Found')
     user.password_hash = hash_password(request)
     db.commit()
+    db.refresh(user)
+    publish_user_event(key=StreamKey.USER, event= UserEvents.PASSWORD_UPDATED, user_id=user.id)
     return user
 
 def UpdatePassword(request: ChangePassword, db, user):
@@ -88,6 +101,7 @@ def UpdatePassword(request: ChangePassword, db, user):
         raise HTTPException(status_code=400,detail="Old Password is Incorrect")
     user.password_hash = hash_password(request.new_password)
     db.commit()
+    publish_user_event(key=StreamKey.USER, event= UserEvents.PASSWORD_UPDATED, user_id=user.id)
     return user
 
 def deleteUser(user_id: int, db):
@@ -97,6 +111,7 @@ def deleteUser(user_id: int, db):
     
     db.query(Users).filter(Users.id == user_id).delete()
     db.commit()
+    publish_user_event(key=StreamKey.USER, event= UserEvents.DELETED, user_id=user.id)
     return f'User {user.id} Deleted Successfully'
 
 def getAllTasks(db,user, user_id=None):
@@ -116,7 +131,7 @@ def getAllTasks(db,user, user_id=None):
             tasks = db.query(Tasks).filter(Tasks.user_id == user_id).order_by(Tasks.id).all()
     return tasks
 
-def CreateTaskById(request : CreateTask ,db):
+def CreateUserTask(request : CreateTask ,db):
     owner = db.query(Users).filter(Users.id == request.user_id).first()
     if owner is None:
         raise HTTPException(status_code=404, detail='Owner of Task Not Found')
@@ -135,18 +150,14 @@ def CreateTaskById(request : CreateTask ,db):
     )
     db.add(task)
     db.commit()
-    redis_client.rpush(
-        f"tasks:queue:user:{request.user_id}",
-        task.id
+    db.refresh(task)
+    publish_task_event(
+        key=StreamKey.TASK,
+        event=TaskEvents.CREATED,
+        task_id=task.id,
+        user_id=task.user_id
     )
-    # redis_client.publish(f'user:{request.user_id}:notifications', f"New Task Created: {task.title}") #Redis pub/sub
-    # redis_client.delete(f'tasks:user:{request.user_id}') //Task changed, need Rebuild
-    redis_client.xadd(
-        f'user:{request.user_id}:notifications',
-        {
-            'message': f'New Task Created: {task.title}'
-        }
-    ) #Redis Streams
+    
     return task
 
 def GetTaskById(task_id: int, user, db):
@@ -165,6 +176,8 @@ def UpdateTaskInformation(task_id: int, info: UpdateTaskInfo, db):
     task.description = info.description
     db.commit()
     db.refresh(task)
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.INFO_UPDATED, task_id=task.id, user_id=task.user_id)
+    # redis_client.rpush(f'user:{task.user_id}:notifications', task.id)
     return task
 
 def UpdateTaskStatus(request: UpdateStatus ,task_id: int, db, user):
@@ -200,6 +213,7 @@ def UpdateTaskStatus(request: UpdateStatus ,task_id: int, db, user):
     task.status = request.status
     db.commit()
     db.refresh(task)
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.STATUS_UPDATED, task_id=task.id, user_id=task.user_id)
     return task
 
 def UpdateTaskPriority(request: UpdatePriority ,task_id: int, db, user):
@@ -212,6 +226,7 @@ def UpdateTaskPriority(request: UpdatePriority ,task_id: int, db, user):
     db.commit()
     db.refresh(task)
     # redis_client.delete(f'tasks:user:{user.id}')
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.PRIORITY_UPDATED, task_id=task.id, user_id=task.user_id)
     return task
 
 def UpdateTaskDuedate(request: UpdateDueDate ,task_id: int, db, user):
@@ -228,6 +243,7 @@ def UpdateTaskDuedate(request: UpdateDueDate ,task_id: int, db, user):
     task.due_date = request.due_date
     db.commit()
     db.refresh(task)
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.DUE_DATE_UPDATED, task_id=task.id, user_id=task.user_id)
     # redis_client.delete(f'tasks:user:{user.id}')
     return task
 
@@ -247,17 +263,21 @@ def UpdateTaskOwner(task_id: int, owner_id: int, db):
     db.commit()
     db.refresh(task)
     redis_client.rpush(f'tasks:queue:user:{owner_id}', str(task.id))
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.USER_ID_UPDATED, task_id=task.id, user_id= task.user_id)
     return task
 
 def DeleteTasksById(task_id: int, db):
     task = db.query(Tasks).filter(Tasks.id == task_id).first()
     if task is None:
         raise HTTPException(status_code=404, detail='Task Not Found')
+    deleted_task_id = task.id
+    deleted_task_user_id = task.user_id
     db.query(Tasks).filter(Tasks.id == task_id).delete()
     db.commit()
     # redis_client.delete(f'tasks:user:{task.user_id}')
     redis_client.lrem(f'tasks:queue:user:{task.user_id}', 0, str(task.id))
     redis_client.lrem(f'tasks:processing:user:{task.user_id}', 0, str(task.id))
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.DELETED, task_id=deleted_task_id, user_id=deleted_task_user_id)
     return 'DONE'
 
 def GetNextTask(db, user):
@@ -282,6 +302,7 @@ def GetNextTask(db, user):
     task.status = Status.in_progress
     db.commit()
     db.refresh(task)
+    publish_task_event(key=StreamKey.TASK,event=TaskEvents.STATUS_UPDATED, task_id=task.id, user_id=task.user_id)
     return task
 
 # def RebuildTaskQueues(db):

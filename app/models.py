@@ -18,6 +18,8 @@ class Role(str,Enum):
     admin = 'admin'
     manager = 'manager'
     user = 'user'
+    
+
 
 class Users(Base):
     __tablename__ = 'users'
