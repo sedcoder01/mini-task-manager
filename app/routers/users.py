@@ -1,9 +1,9 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Body
 from starlette import status
-from app.crud import UpdatePassword, UpdateUserPasswordById, UpdateUserRole, createUser, getAllUsers, getUserByEmail, getUserById, deleteUser, authenticateUser, updateUserInfo
+from app.crud import GetNotifications, UpdatePassword, UpdateUserPasswordById, UpdateUserRole, createUser, getAllUsers, getUserByEmail, getUserById, deleteUser, authenticateUser, updateUserInfo
 from app.database import get_db
-from app.schemas import ChangePassword, ChangeRole, CreateUser, UpdateUser, UserResponse, Token
+from app.schemas import ChangePassword, ChangeRole, CreateUser, NotificationResponse, UpdateUser, UserResponse, Token
 from sqlalchemy.orm import Session
 from app.dependencies import get_current_user, require_role
 from fastapi.security import OAuth2PasswordRequestForm
@@ -46,6 +46,13 @@ async def get_user_by_email(
     user: Users = Depends(require_role(Role.admin))    
 ):
     return getUserByEmail(email.lower(),db)
+
+@router.get("/notifications", status_code=status.HTTP_200_OK, response_model=NotificationResponse)
+async def get_user_notifications(
+    db: db_dependency,
+    user: user_dependency
+):
+    return GetNotifications(user)
 
 @router.get('/{user_id}',status_code=status.HTTP_200_OK,response_model=UserResponse)
 async def get_user_by_id(

@@ -49,16 +49,20 @@ def authenticateUser(email: str, password: str, db):
     token = create_access_token(
         { 'sub' : str(user.id)}
     )
-    publish_user_event(key=StreamKey.USER, event=UserEvents.LOGGED_IN, user_id=user.id)
-    notifications = redis_client.lrange(
-        f"user:{user.id}:notifications",
-        0,
-        -1
-    )
+    publish_user_event(key=StreamKey.USER, event=UserEvents.LOGGED_IN, user_id=user.id)       
     return {
         'access_token': token,
         'token_type': 'bearer'
-        }
+    }
+    
+def GetNotifications(user):
+    notifications = redis_client.xrange(
+        f"user:{user.id}:notifications",
+        "-",
+        "+"
+    )
+    notifications = [data["message"] for message_id, data in notifications]
+    return { 'notifications': notifications}
     
 def updateUserInfo(user_id: int,name : str,email: str, db):
     user = db.query(Users).filter(Users.id == user_id).first()

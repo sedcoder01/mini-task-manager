@@ -5,9 +5,18 @@ from app.database import get_db
 from app.routers.users import router as userRouter
 from app.routers.tasks import router as taskRouter
 from app.redis import redis_client
+from fastapi.middleware.cors import CORSMiddleware
 # from app.crud import RebuildTaskQueues
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5500","http://localhost:5500"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # @app.on_event('startup')
 # def startup():
